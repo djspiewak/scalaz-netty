@@ -30,14 +30,14 @@ resolvers += "djspiewak Bintray Repo" at "http://dl.bintray.com/djspiewak/maven"
 
 libraryDependencies ++= Seq(
   "org.scalaz"        %% "scalaz-core"   % "7.1.1",
-  "org.scalaz.stream" %% "scalaz-stream" % "master-a-c2e38611383f6aed50211a3f9f1dec98e9eb4bd6",
+  "org.scalaz.stream" %% "scalaz-stream" % "0b8034baed5edf0e71b378174f476da1c95121f8",
 
   "io.netty"          %  "netty-codec"   % "4.0.21.Final",
 
   "org.scodec"        %% "scodec-core"   % "1.7.1")
 
 libraryDependencies ++= Seq(
-  "org.specs2"     %% "specs2-core" % "3.4-20150414184652-cc2a4e5"    % "test",
+  "org.specs2"     %% "specs2-core" % "3.5-20150429171759-b408617"    % "test",
   "org.scalacheck" %% "scalacheck"  % "1.12.2" % "test")
 
 licenses += ("Apache-2.0", url("http://www.apache.org/licenses/"))
