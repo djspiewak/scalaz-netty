@@ -15,7 +15,7 @@ private[netty] object Util {
       Task delay {
         if (size >= limit && config.isAutoRead) {
           config.setAutoRead(false)
-        } else if (size < limit && !config.isAutoRead) {
+        } else if (size < (limit / 2) && !config.isAutoRead) {
           config.setAutoRead(true)
         }
       }
