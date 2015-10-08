@@ -54,24 +54,24 @@ private[netty] class Server(bossGroup: NioEventLoopGroup, channel: _root_.io.net
 
 private[netty] final class ServerHandler(channel: SocketChannel, serverQueue: async.mutable.Queue[Process[Task, Exchange[ByteVector, ByteVector]]], limit: Int)(implicit pool: ExecutorService, S: Strategy) extends ChannelInboundHandlerAdapter {
 
-  private val channelConfig = channel.config
-
   // data from a single connection
-  private val queue = BPAwareQueue[ByteVector](limit)
+  private val queue = async.unboundedQueue[ByteVector]
   private val halt: AtomicReference[Cause] = new AtomicReference(Cause.End)
+
+  Util.limiter(channel.config, queue, limit).run runAsync { _ => () }          // this is... fun
 
   override def channelActive(ctx: ChannelHandlerContext): Unit = {
     val process: Process[Task, Exchange[ByteVector, ByteVector]] =
       Process(Exchange(read, write)) onComplete shutdown
 
-    serverQueue.enqueueOne(process).run
+    serverQueue.enqueueOne(process) runAsync { _ => () }
 
     super.channelActive(ctx)
   }
 
   override def channelInactive(ctx: ChannelHandlerContext): Unit = {
     // if the connection is remotely closed, we need to clean things up on our side
-    queue.close.run
+    queue.close runAsync { _ => () }
 
     super.channelInactive(ctx)
   }
@@ -85,17 +85,16 @@ private[netty] final class ServerHandler(channel: SocketChannel, serverQueue: as
 
     buf.release()
 
-    // because this is run and not runAsync, we have backpressure propagation
-    queue.enqueueOne(channelConfig, bv).run
+    queue.enqueueOne(bv) runAsync { _ => () }
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, t: Throwable): Unit = {
     halt.set(Cause.Error(t))
-    queue.close.run
+    queue.close runAsync { _ => () }
   }
 
   // do not call more than once!
-  private def read: Process[Task, ByteVector] = queue.dequeue(channelConfig)
+  private lazy val read: Process[Task, ByteVector] = queue.dequeue
 
   private def write: Sink[Task, ByteVector] = {
     def inner(bv: ByteVector): Task[Unit] = {
