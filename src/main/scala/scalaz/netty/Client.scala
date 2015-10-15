@@ -75,6 +75,7 @@ private[netty] final class ClientHandler(queue: async.mutable.Queue[ByteVector],
   }
 
   override def channelRead(ctx: ChannelHandlerContext, msg: AnyRef): Unit = {
+    println(s">>>>>>>>channel read hit")
     val buf = msg.asInstanceOf[ByteBuf]
     val dst = Array.ofDim[Byte](buf.capacity())
     buf.getBytes(0, dst)
@@ -82,8 +83,10 @@ private[netty] final class ClientHandler(queue: async.mutable.Queue[ByteVector],
 
     buf.release()
 
+    println(s">>>>>>>>enqueueing $bv")
     //this could be run async too, but then we introduce some latency. It's better to run this on the netty worker thread as enqueue uses Strategy.Sequential
     queue.enqueueOne(bv).run
+    println(s">>>>>>>>dequeueing $bv")
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, t: Throwable): Unit = {
