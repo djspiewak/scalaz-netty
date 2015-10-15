@@ -36,13 +36,9 @@ import _root_.io.netty.handler.codec._
 
 private[netty] final class Client(channel: _root_.io.netty.channel.Channel, queue: async.mutable.Queue[ByteVector], limit: Int, halt: AtomicReference[Cause]) {
 
-<<<<<<< HEAD
   Util.limiter(channel.config, queue, limit).run runAsync { _ => () }          // this is... fun
 
-  lazy val read: Process[Task, ByteVector] = queue.dequeue
-=======
-  def read: Process[Task, ByteVector] = queue.dequeue(channel.config) observe scalaz.stream.sink.lift(bv => Task.delay(println(s">>>>>>> dequeued $bv")))
->>>>>>> more debug
+  lazy val read: Process[Task, ByteVector] = queue.dequeue observe scalaz.stream.sink.lift(bv => Task.delay(println(s">>>>>>> dequeued $bv")))
 
   def write(implicit pool: ExecutorService): Sink[Task, ByteVector] = {
     def inner(bv: ByteVector): Task[Unit] = {
@@ -62,8 +58,10 @@ private[netty] final class Client(channel: _root_.io.netty.channel.Channel, queu
 
   def shutdown(implicit pool: ExecutorService): Process[Task, Nothing] = {
     val close = for {
+      _ <- Task.delay(println(s"netty client shutdown starting"))
       _ <- Netty toTask channel.close()
       _ <- queue.close
+      _ <- Task.delay(println(s"netty client shutdown complete"))
     } yield ()
 
     Process eval_ close causedBy halt.get
@@ -73,6 +71,8 @@ private[netty] final class Client(channel: _root_.io.netty.channel.Channel, queu
 private[netty] final class ClientHandler(queue: async.mutable.Queue[ByteVector], halt: AtomicReference[Cause]) extends ChannelInboundHandlerAdapter {
 
   override def channelInactive(ctx: ChannelHandlerContext): Unit = {
+    println(s"channel inactive")
+
     // if the connection is remotely closed, we need to clean things up on our side
     queue.close.run
 
