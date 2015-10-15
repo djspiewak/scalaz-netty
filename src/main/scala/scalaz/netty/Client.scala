@@ -36,19 +36,24 @@ import _root_.io.netty.handler.codec._
 
 private[netty] final class Client(channel: _root_.io.netty.channel.Channel, queue: async.mutable.Queue[ByteVector], limit: Int, halt: AtomicReference[Cause]) {
 
+<<<<<<< HEAD
   Util.limiter(channel.config, queue, limit).run runAsync { _ => () }          // this is... fun
 
   lazy val read: Process[Task, ByteVector] = queue.dequeue
+=======
+  def read: Process[Task, ByteVector] = queue.dequeue(channel.config) observe scalaz.stream.sink.lift(bv => Task.delay(println(s">>>>>>> dequeued $bv")))
+>>>>>>> more debug
 
   def write(implicit pool: ExecutorService): Sink[Task, ByteVector] = {
     def inner(bv: ByteVector): Task[Unit] = {
-      Task delay {
+      (Task delay {
         val data = bv.toArray
         val buf = channel.alloc().buffer(data.length)
         buf.writeBytes(data)
 
+        println(s"going to WRITE AND FLUSH $bv")
         Netty toTask channel.writeAndFlush(buf)
-      } join
+      } join) >> Task.delay(println(s"wrote and flushed"))
     }
 
     // TODO termination
@@ -86,10 +91,11 @@ private[netty] final class ClientHandler(queue: async.mutable.Queue[ByteVector],
     println(s">>>>>>>>enqueueing $bv")
     //this could be run async too, but then we introduce some latency. It's better to run this on the netty worker thread as enqueue uses Strategy.Sequential
     queue.enqueueOne(bv).run
-    println(s">>>>>>>>dequeueing $bv")
+    println(s">>>>>>>>enqueued $bv")
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, t: Throwable): Unit = {
+    println(s">>>>>>>>exception $t")
     halt.set(Cause.Error(t))
     queue.close.run
   }
