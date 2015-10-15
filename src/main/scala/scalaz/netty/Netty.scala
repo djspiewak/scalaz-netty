@@ -64,7 +64,7 @@ object Netty {
             println(s"success in toTask")
             cb(\/-(()))
           } else {
-            println(s"failure in toTask")
+            println(s"failure in toTask ${f.cause}")
             cb(-\/(f.cause))
           }
         }
