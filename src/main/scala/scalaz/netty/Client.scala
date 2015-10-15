@@ -74,7 +74,7 @@ private[netty] final class ClientHandler(queue: async.mutable.Queue[ByteVector],
     println(s"<client> channel inactive")
 
     // if the connection is remotely closed, we need to clean things up on our side
-    queue.close.run
+    queue.close runAsync { _ => () }
 
     super.channelInactive(ctx)
   }
@@ -89,15 +89,14 @@ private[netty] final class ClientHandler(queue: async.mutable.Queue[ByteVector],
     buf.release()
 
     println(s"<client> enqueueing $bv")
-    //this could be run async too, but then we introduce some latency. It's better to run this on the netty worker thread as enqueue uses Strategy.Sequential
-    queue.enqueueOne(bv).run
+    queue.enqueueOne(bv) runAsync { _ => () }
     println(s"<client> enqueued $bv")
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, t: Throwable): Unit = {
     println(s"<client> exception $t")
     halt.set(Cause.Error(t))
-    queue.close.run
+    queue.close runAsync { _ => () }
   }
 }
 
