@@ -70,6 +70,8 @@ private[netty] final class ServerHandler(channel: SocketChannel, serverQueue: as
   }
 
   override def channelInactive(ctx: ChannelHandlerContext): Unit = {
+    println(s"<server> channel inactive")
+
     // if the connection is remotely closed, we need to clean things up on our side
     queue.close runAsync { _ => () }
 
@@ -77,6 +79,8 @@ private[netty] final class ServerHandler(channel: SocketChannel, serverQueue: as
   }
 
   override def channelRead(ctx: ChannelHandlerContext, msg: AnyRef): Unit = {
+    println(s"<server> channel read hit")
+
     val buf = msg.asInstanceOf[ByteBuf]
     val dst = Array.ofDim[Byte](buf.capacity())
     buf.getBytes(0, dst)
@@ -85,26 +89,33 @@ private[netty] final class ServerHandler(channel: SocketChannel, serverQueue: as
 
     buf.release()
 
+    println(s"<server> enqueueing $bv")
+
     queue.enqueueOne(bv) runAsync { _ => () }
+
+    println(s"<server> enqueued $bv")
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, t: Throwable): Unit = {
+    println(s"<server> exception $t")
+
     halt.set(Cause.Error(t))
     queue.close runAsync { _ => () }
   }
 
   // do not call more than once!
-  private lazy val read: Process[Task, ByteVector] = queue.dequeue
+  private lazy val read: Process[Task, ByteVector] = queue.dequeue observe scalaz.stream.sink.lift(bv => Task.delay(println(s"<server> dequeued $bv")))
 
   private def write: Sink[Task, ByteVector] = {
     def inner(bv: ByteVector): Task[Unit] = {
-      Task delay {
+      (Task delay {
         val data = bv.toArray
         val buf = channel.alloc().buffer(data.length)
         buf.writeBytes(data)
 
+        println(s"<server> going to WRITE AND FLUSH $bv")
         Netty toTask channel.writeAndFlush(buf)
-      } join
+      } join) >> Task.delay(println(s"<server> wrote and flushed $bv"))
     }
 
     // TODO termination
@@ -113,8 +124,10 @@ private[netty] final class ServerHandler(channel: SocketChannel, serverQueue: as
 
   def shutdown: Process[Task, Nothing] = {
     val close = for {
+      _ <- Task.delay(println(s"<server> shutdown starting"))
       _ <- Netty toTask channel.close()
       _ <- queue.close
+      _ <- Task.delay(println(s"<server> shutdown complete"))
     } yield ()
 
     Process eval_ close causedBy halt.get
