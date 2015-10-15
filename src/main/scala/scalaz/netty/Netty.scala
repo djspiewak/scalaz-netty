@@ -60,10 +60,13 @@ object Netty {
     Task async { (cb: (Throwable \/ Unit) => Unit) =>
       f.addListener(new ChannelFutureListener {
         def operationComplete(f: ChannelFuture): Unit = {
-          if (f.isSuccess)
+          if (f.isSuccess) {
+            println(s"success in toTask")
             cb(\/-(()))
-          else
+          } else {
+            println(s"failure in toTask")
             cb(-\/(f.cause))
+          }
         }
       })
     }

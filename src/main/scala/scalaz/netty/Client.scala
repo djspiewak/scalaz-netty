@@ -53,7 +53,7 @@ private[netty] final class Client(channel: _root_.io.netty.channel.Channel, queu
 
         println(s"going to WRITE AND FLUSH $bv")
         Netty toTask channel.writeAndFlush(buf)
-      } join) >> Task.delay(println(s"wrote and flushed"))
+      } join) >> Task.delay(println(s"wrote and flushed $bv"))
     }
 
     // TODO termination
